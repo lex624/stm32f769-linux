@@ -40,12 +40,14 @@ el('connect').onsubmit = async event => {
   try {
     await room.connect(el('url').value.trim(), el('token').value.trim());
     el('token').value = '';
-    const pub = await room.localParticipant.setCameraEnabled(true, {facingMode:'environment'});
-    if (!pub?.track || active !== room) throw new Error('Camera unavailable');
-    pub.track.attach(el('preview'));
-    el('preview').hidden = false;
+    if (el('camera').checked) {
+      const pub = await room.localParticipant.setCameraEnabled(true, {facingMode:'environment'});
+      if (!pub?.track || active !== room) throw new Error('Camera unavailable');
+      pub.track.attach(el('preview'));
+      el('preview').hidden = false;
+    }
     el('leave').disabled = false;
-    el('status').textContent = 'Publishing as ' + room.localParticipant.identity;
+    el('status').textContent = 'Connected as ' + room.localParticipant.identity;
   } catch {
     await room.disconnect();
     resetRoom(room);
@@ -60,6 +62,7 @@ el('ble').onclick = async () => {
   try {
     device = await navigator.bluetooth.requestDevice({filters:[{services:[SERVICE]}]});
     device.addEventListener('gattserverdisconnected', () => {
+      el('sample').disabled = true;
       characteristic = undefined;
       el('ble').textContent = 'Connect BLE board';
       el('board').textContent = 'Board disconnected';
@@ -69,6 +72,7 @@ el('ble').onclick = async () => {
     characteristic = await service.getCharacteristic(CONTROL);
     if (!characteristic.properties.write) throw new Error('Missing write-with-response support');
     sequence = 0;
+    el('sample').disabled = false;
     el('ble').textContent = 'Disconnect BLE board';
     el('board').textContent = 'Connected to ' + (device.name || 'Discovery');
   } catch {
@@ -78,3 +82,14 @@ el('ble').onclick = async () => {
   } finally { el('ble').disabled = false; }
 };
 window.addEventListener('pagehide', () => { active?.disconnect(); device?.gatt.disconnect(); });
+
+el('sample').onclick = async () => {
+  if (!characteristic || writing) return;
+  writing = true;
+  try {
+    await characteristic.writeValueWithResponse(encodeFrame(42, [0.25, -0.5]));
+    el('board').textContent = 'Board acknowledged test axes';
+  } catch {
+    el('board').textContent = 'Test write failed';
+  } finally { writing = false; }
+};

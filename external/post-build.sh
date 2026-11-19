@@ -18,3 +18,7 @@ rm -f "$TARGET/etc/init.d/S01seedrng"
 
 # Both Linux consoles receive printk. The last console remains the serial input.
 sed -i 's/console=ttySTM0/console=tty0 fbcon=rotate:1 clk_ignore_unused console=ttySTM0/' "$TARGET/boot/extlinux/extlinux.conf"
+
+# The root-level script runs before U-Boot scans /boot for extlinux.conf.
+"$HOST_DIR/bin/mkimage" -A arm -O linux -T script -C none -n F769 \
+    -d "$BR2_EXTERNAL_STM32F769_PATH/f769-boot.cmd" "$TARGET/boot.scr"

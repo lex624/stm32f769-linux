@@ -1,6 +1,6 @@
 # STM32F769 Discovery Linux bench
 
-On this development branch, the [Android LiveKit camera gateway](gateway/README.md) implements the first media and joystick interfaces for the F769 port. The target-side control-frame diagnostic lives in `port/`.
+On this development branch, the [Android LiveKit camera gateway](gateway/README.md) implements the first media and joystick interfaces for the F769 port. The [hardware validation guide](bench/README.md) covers Ethernet SSH, USB OTG, BLE and the camera-free LiveKit test.
 
 Buildroot external tree for the STM32F769I-DISCO with 16 MiB SDRAM. U-Boot starts Linux 5.15.211 from microSD. The landscape LCD displays kernel messages and mirrors the interactive BusyBox shell. Type on the ST-LINK virtual COM port at 115200 8N1.
 

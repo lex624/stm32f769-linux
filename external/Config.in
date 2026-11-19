@@ -1,2 +1,3 @@
 source "$BR2_EXTERNAL_STM32F769_PATH/package/f769-hello/Config.in"
 source "$BR2_EXTERNAL_STM32F769_PATH/package/lcd-shell/Config.in"
+source "$BR2_EXTERNAL_STM32F769_PATH/package/f769-bench/Config.in"

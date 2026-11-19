@@ -29,3 +29,4 @@ console::respawn:/usr/bin/lcd-shell
 # Stuff to do before rebooting
 ::shutdown:/etc/init.d/rcK
 ::shutdown:/bin/umount -a -r
+null::respawn:/usr/sbin/ssh-listener
