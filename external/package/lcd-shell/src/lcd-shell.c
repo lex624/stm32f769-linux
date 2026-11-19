@@ -1,6 +1,8 @@
 /* Mirror a single interactive Linux PTY to the Discovery LCD and the ST-LINK
  * serial console. The shell owns the PTY so line editing, echo and signals
- * are handled once by Linux. UART remains the keyboard on the bench. */
+ * are handled once by Linux. Input comes from the UART and from the LCD's VT,
+ * which is where a USB keyboard on CN15 types; the VT is put in raw mode so
+ * only the PTY echoes. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
@@ -44,7 +46,7 @@ int main(int argc, char **argv)
         if (tty > 2) close(tty);
         shell();
     }
-    int lcd = open("/dev/tty1", O_WRONLY | O_NOCTTY | O_CLOEXEC);
+    int lcd = open("/dev/tty1", O_RDWR | O_NOCTTY | O_CLOEXEC);
     if (lcd < 0 || access("/dev/fb0", F_OK) < 0) shell();
     if (mount("devpts", "/dev/pts", "devpts", 0, NULL) < 0 && errno != EBUSY) shell();
     int master = posix_openpt(O_RDWR | O_NOCTTY | O_CLOEXEC);
@@ -57,6 +59,12 @@ int main(int argc, char **argv)
     raw = saved;
     cfmakeraw(&raw);
     if (tcsetattr(0, TCSANOW, &raw) < 0) shell();
+    struct termios vt;
+    int keyboard = tcgetattr(lcd, &vt) == 0;
+    if (keyboard) {
+        cfmakeraw(&vt);
+        keyboard = tcsetattr(lcd, TCSANOW, &vt) == 0;
+    }
     char *child_args[] = {argv[0], slave, NULL};
     pid_t child = vfork();
     if (child == 0) {
@@ -67,16 +75,22 @@ int main(int argc, char **argv)
         tcsetattr(0, TCSANOW, &saved);
         shell();
     }
-    struct pollfd ports[] = {{0, POLLIN, 0}, {master, POLLIN, 0}};
+    struct pollfd ports[] = {{0, POLLIN, 0}, {master, POLLIN, 0},
+                             {keyboard ? lcd : -1, POLLIN, 0}};
     char buf[256];
     for (;;) {
-        int ready = poll(ports, 2, -1);
+        int ready = poll(ports, 3, -1);
         if (ready < 0 && errno == EINTR) continue;
         if (ready < 0) break;
         if (ports[1].revents) {
             ssize_t n = read(master, buf, sizeof(buf));
             if (n <= 0 || copy_bytes(1, buf, n) < 0) break;
-            if (lcd >= 0 && copy_bytes(lcd, buf, n) < 0) { close(lcd); lcd = -1; }
+            if (lcd >= 0 && copy_bytes(lcd, buf, n) < 0) { close(lcd); lcd = -1; ports[2].fd = -1; }
+        }
+        if (ports[2].revents) {
+            ssize_t n = read(lcd, buf, sizeof(buf));
+            if (n > 0 && copy_bytes(master, buf, n) < 0) break;
+            if (n <= 0 && errno != EINTR && errno != EAGAIN) ports[2].fd = -1;
         }
         if (ports[0].revents) {
             ssize_t n = read(0, buf, sizeof(buf));
