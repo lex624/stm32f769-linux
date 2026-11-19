@@ -15,5 +15,8 @@ video{width:100%;margin-top:1rem;background:#0a1012}output{display:block;margin:
 <button id="join">Join room</button><button id="leave" type="button" disabled>Disconnect</button></form>
 <output id="status" role="status">Disconnected</output>
 <video id="preview" autoplay playsinline muted hidden></video>
+<section><h2>Frames to board over USB</h2>
+<label>Board frame URL (USB tethering on CN15)<input id="frameUrl" type="url" value="http://10.211.247.152:8090/frame"></label>
+<button type="button" id="frames">Send frames to board</button><output id="frameStatus">Not sending</output></section>
 <button type="button" id="ble">Connect BLE board</button><button type="button" id="sample" disabled>Send test axes</button><output id="board">Board disconnected</output>
 <output id="axes">Waiting for control data</output><script type="module" src="/main.js"></script></main></body></html>
