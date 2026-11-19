@@ -1,0 +1,7 @@
+config BR2_PACKAGE_F769_HELLO
+	bool "f769-hello"
+	help
+	  Board bring-up test program for the STM32F769I-DISCO. Prints
+	  kernel/board identity and free memory, and demonstrates the
+	  noMMU-safe way to spawn a child (vfork + exec, since fork()
+	  does not exist on uClinux).

@@ -1,0 +1,101 @@
+--- a/arch/arm/boot/dts/stm32f769-disco.dts
++++ b/arch/arm/boot/dts/stm32f769-disco.dts
+@@ -150,3 +150,98 @@
+ 	pinctrl-names = "default";
+ 	status = "okay";
+ };
++
++/*
++ * Ethernet for the STM32F769I-DISCO: LAN8742A PHY on RMII.
++ *
++ * stm32f746.dtsi carries no MAC node at all in 5.15 (stm32f429.dtsi and
++ * stm32h743.dtsi do), so the whole controller is described here. Values follow
++ * the DWMAC in stm32f429.dtsi and U-Boot's stm32f7-u-boot.dtsi, which drives
++ * this exact SoC. The pin list is the board's RMII set from U-Boot.
++ *
++ * st,syscon is required: dwmac-stm32 uses SYSCFG PMC bit 23 to select RMII
++ * rather than MII. compatible "st,stm32-dwmac" selects stm32mcu_dwmac_data,
++ * the F4/F7 variant - "st,stm32mp1-dwmac" is for the MPU parts.
++ *
++ * Only the MAC interrupt (61) is listed. U-Boot's node also declares 62 as
++ * eth_wake_irq, but on F7 that is the Ethernet wake-up line behind EXTI, not a
++ * plain NVIC interrupt, and requesting it fails with -EINVAL:
++ *   stmmac_request_irq_single: ERROR: allocating the WoL IRQ 28 (-22)
++ * With no eth_wake_irq, stmmac sets wol_irq = dev->irq and never requests it.
++ */
++&pinctrl {
++	ethernet_rmii_pins: ethernet-rmii-0 {
++		pins {
++			pinmux = <STM32_PINMUX('G', 13, AF11)>, /* ETH_RMII_TXD0 */
++				 <STM32_PINMUX('G', 14, AF11)>, /* ETH_RMII_TXD1 */
++				 <STM32_PINMUX('G', 11, AF11)>, /* ETH_RMII_TX_EN */
++				 <STM32_PINMUX('A',  2, AF11)>, /* ETH_MDIO */
++				 <STM32_PINMUX('C',  1, AF11)>, /* ETH_MDC */
++				 <STM32_PINMUX('A',  1, AF11)>, /* ETH_RMII_REF_CLK */
++				 <STM32_PINMUX('A',  7, AF11)>, /* ETH_RMII_CRS_DV */
++				 <STM32_PINMUX('C',  4, AF11)>, /* ETH_RMII_RXD0 */
++				 <STM32_PINMUX('C',  5, AF11)>; /* ETH_RMII_RXD1 */
++			slew-rate = <2>;
++		};
++	};
++};
++
++&{/soc} {
++	mac: ethernet@40028000 {
++		compatible = "st,stm32-dwmac", "snps,dwmac-3.50a";
++		reg = <0x40028000 0x8000>;
++		reg-names = "stmmaceth";
++		interrupts = <61>;
++		interrupt-names = "macirq";
++		clock-names = "stmmaceth", "mac-clk-tx", "mac-clk-rx";
++		clocks = <&rcc 0 STM32F7_AHB1_CLOCK(ETHMAC)>,
++			 <&rcc 0 STM32F7_AHB1_CLOCK(ETHMACTX)>,
++			 <&rcc 0 STM32F7_AHB1_CLOCK(ETHMACRX)>;
++		st,syscon = <&syscfg 0x4>;
++		snps,pbl = <8>;
++		snps,mixed-burst;
++		pinctrl-0 = <&ethernet_rmii_pins>;
++		pinctrl-names = "default";
++		phy-mode = "rmii";
++		phy-handle = <&phy0>;
++		status = "okay";
++
++		mdio0 {
++			#address-cells = <1>;
++			#size-cells = <0>;
++			compatible = "snps,dwmac-mdio";
++
++			phy0: ethernet-phy@0 {
++				reg = <0>;
++			};
++		};
++	};
++};
++
++/*
++ * Coherent DMA pool.
++ *
++ * This kernel is CONFIG_DMA_GLOBAL_POOL=y: on ARM noMMU, dma_alloc_coherent()
++ * is served only from a global pool declared here. Without it there is no
++ * coherent memory at all and every DMA allocation fails whatever its size -
++ * stmmac_open() reported "DMA descriptors allocation failed" even after the
++ * rings were cut from 512 to 64 descriptors.
++ *
++ * Shape follows stm32h750i-art-pi.dts, the in-tree noMMU STM32 precedent, but
++ * sized down: the 64-entry rings need about 4 KB of coherent memory, and on a
++ * 16 MB board RAM is far scarcer than pool headroom.
++ */
++/ {
++	reserved-memory {
++		#address-cells = <1>;
++		#size-cells = <1>;
++		ranges;
++
++		dma_pool: dma-pool {
++			compatible = "shared-dma-pool";
++			no-map;
++			size = <0x40000>;
++			linux,dma-default;
++		};
++	};
++};

@@ -1,0 +1,27 @@
+# Networking for the STM32F769I-DISCO.
+#
+# The upstream "stm32" kernel defconfig builds with CONFIG_NET switched off
+# entirely - there is no socket layer at all, so nothing network-related can run
+# until this fragment is applied.
+CONFIG_NET=y
+CONFIG_PACKET=y
+CONFIG_UNIX=y
+CONFIG_INET=y
+
+# No IPv6 or netfilter: this is a 16 MB noMMU target, keep the stack minimal.
+# CONFIG_IPV6 is not set
+
+CONFIG_NETDEVICES=y
+CONFIG_ETHERNET=y
+CONFIG_NET_VENDOR_STMICRO=y
+CONFIG_STMMAC_ETH=y
+CONFIG_STMMAC_PLATFORM=y
+CONFIG_DWMAC_STM32=y
+
+# LAN8742A on the board is driven by the SMSC PHY driver.
+CONFIG_PHYLIB=y
+CONFIG_SMSC_PHY=y
+
+# dwmac-stm32 reaches SYSCFG through a regmap to select RMII mode.
+CONFIG_MFD_SYSCON=y
+CONFIG_REGMAP_MMIO=y

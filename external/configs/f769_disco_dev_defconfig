@@ -1,0 +1,46 @@
+BR2_arm=y
+BR2_cortex_m7=y
+# NOTE: do not add BR2_BINFMT_FLAT_SHARED - it is a removed legacy symbol and
+# Buildroot will refuse to build. Shared FLAT is gone from both the kernel and
+# uClibc-ng, so every binary is fully static and each exec() needs one physically
+# contiguous allocation the size of the whole binary (no demand paging on noMMU).
+# That makes binary size the hard constraint here: keep executables small, see
+# the trimmed busybox config below.
+BR2_PACKAGE_BUSYBOX_CONFIG="$(BR2_EXTERNAL_STM32F769_PATH)/busybox-min.config"
+BR2_PACKAGE_HOST_LINUX_HEADERS_CUSTOM_5_15=y
+BR2_GLOBAL_PATCH_DIR="board/stmicroelectronics/stm32f769-disco/patches $(BR2_EXTERNAL_STM32F769_PATH)/patches"
+BR2_DOWNLOAD_FORCE_CHECK_HASHES=y
+BR2_ROOTFS_POST_BUILD_SCRIPT="board/stmicroelectronics/stm32f769-disco/post-build.sh $(BR2_EXTERNAL_STM32F769_PATH)/post-build.sh"
+BR2_ROOTFS_POST_IMAGE_SCRIPT="support/scripts/genimage.sh"
+BR2_ROOTFS_POST_SCRIPT_ARGS="-c board/stmicroelectronics/stm32f769-disco/genimage.cfg"
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_CUSTOM_VERSION=y
+BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="5.15.211"
+BR2_LINUX_KERNEL_DEFCONFIG="stm32"
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(LINUX_DIR)/arch/arm/configs/dram_0xc0000000.config board/stmicroelectronics/stm32f769-disco/linux-sd.fragment $(BR2_EXTERNAL_STM32F769_PATH)/linux-net.fragment $(BR2_EXTERNAL_STM32F769_PATH)/lcd.fragment"
+BR2_LINUX_KERNEL_IMAGE_TARGET_CUSTOM=y
+BR2_LINUX_KERNEL_IMAGE_TARGET_NAME="zImage"
+BR2_LINUX_KERNEL_DTS_SUPPORT=y
+BR2_LINUX_KERNEL_INTREE_DTS_NAME="stm32f769-disco"
+BR2_LINUX_KERNEL_INSTALL_TARGET=y
+BR2_PACKAGE_IFUPDOWN_SCRIPTS=y
+BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_STM32F769_PATH)/rootfs-overlay"
+BR2_SYSTEM_DHCP=""
+BR2_TARGET_ROOTFS_EXT2=y
+BR2_TARGET_ROOTFS_EXT2_SIZE="32M"
+# BR2_TARGET_ROOTFS_TAR is not set
+BR2_TARGET_UBOOT=y
+BR2_TARGET_UBOOT_BUILD_SYSTEM_KCONFIG=y
+BR2_TARGET_UBOOT_CUSTOM_VERSION=y
+BR2_TARGET_UBOOT_CUSTOM_VERSION_VALUE="2026.07"
+BR2_TARGET_UBOOT_BOARD_DEFCONFIG="stm32f769-disco"
+BR2_TARGET_UBOOT_NEEDS_OPENSSL=y
+BR2_PACKAGE_HOST_GENIMAGE=y
+BR2_PACKAGE_HOST_OPENOCD=y
+BR2_PACKAGE_F769_HELLO=y
+# Networking tool is busybox's own nc applet (CONFIG_NC in busybox-min.config),
+# not a standalone package. On noMMU every binary is fully static and each exec()
+# needs one contiguous allocation its full size, so an applet inside the already
+# resident busybox costs nothing while a separate netcat binary costs another
+# allocation. Dropbear was rejected outright for this reason: 419 KB, order-7.
+BR2_PACKAGE_LCD_SHELL=y

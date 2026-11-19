@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# Minimal udhcpc lease handler for the STM32F769I-DISCO.
+#
+# Replaces Buildroot's stock script, which needs grep and mktemp only to rewrite
+# resolv.conf, and ip for an IPv6 path this target never takes. Those applets
+# cost ~30 KB in busybox, and busybox has to stay under 256 KB: on noMMU every
+# exec needs one physically contiguous allocation the size of the whole binary,
+# and above 256 KB that becomes an order-7 request the allocator usually cannot
+# satisfy on a fragmented 12 MB system.
+#
+# Uses only: ifconfig, route, echo, cat, test.
+
+[ -z "$1" ] && echo "Error: should be called from udhcpc" && exit 1
+
+RESOLV_CONF="/etc/resolv.conf"
+
+case "$1" in
+	deconfig)
+		/sbin/ifconfig $interface up
+		/sbin/ifconfig $interface 0.0.0.0
+		;;
+
+	leasefail|nak)
+		echo "udhcpc: lease failed on $interface"
+		;;
+
+	renew|bound)
+		[ -n "$broadcast" ] && BROADCAST="broadcast $broadcast"
+		[ -n "$subnet" ]    && NETMASK="netmask $subnet"
+		/sbin/ifconfig $interface $ip $BROADCAST $NETMASK
+		echo "udhcpc: $interface = $ip"
+
+		if [ -n "$router" ]; then
+			while route del default gw 0.0.0.0 dev $interface 2>/dev/null; do :; done
+			for i in $router; do
+				route add default gw $i dev $interface && echo "udhcpc: gateway $i"
+			done
+		fi
+
+		# Rewritten wholesale rather than filtered - this target has one
+		# interface, so there is nothing to preserve from other leases.
+		: > $RESOLV_CONF
+		[ -n "$domain" ] && echo "search $domain" >> $RESOLV_CONF
+		for i in $dns; do
+			echo "nameserver $i" >> $RESOLV_CONF
+			echo "udhcpc: dns $i"
+		done
+		;;
+esac
+
+exit 0

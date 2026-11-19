@@ -1,0 +1,16 @@
+--- a/arch/arm/dts/stm32f769-disco-u-boot.dtsi
++++ b/arch/arm/dts/stm32f769-disco-u-boot.dtsi
+@@ -181,3 +181,13 @@
+ 		reg = <0>;
+ 	};
+ };
++
++/*
++ * The card-detect switch on this board does not pull PI15 low when a card is
++ * seated. U-Boot's PL180 driver reads cd-gpios directly and ignores the
++ * broken-cd property that the kernel DT relies on, so drop cd-gpios here and
++ * let the controller probe the card unconditionally.
++ */
++&sdio2 {
++	/delete-property/ cd-gpios;
++};

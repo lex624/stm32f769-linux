@@ -1,0 +1,8 @@
+# Dedicated Ethernet bench link
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+  address 10.77.77.2
+  netmask 255.255.255.252

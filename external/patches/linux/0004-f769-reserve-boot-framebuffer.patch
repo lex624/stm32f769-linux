@@ -1,0 +1,19 @@
+--- a/arch/arm/boot/dts/stm32f769-disco.dts
++++ b/arch/arm/boot/dts/stm32f769-disco.dts
+@@ -245,3 +245,16 @@
+ 		};
+ 	};
+ };
++&{/reserved-memory} {
++    framebuffer@c0e00000 { reg = <0xc0e00000 0xbb800>; no-map; };
++};
++&{/chosen} {
++    #address-cells = <1>;
++    #size-cells = <1>;
++    ranges;
++    framebuffer@c0e00000 {
++        compatible = "simple-framebuffer";
++        reg = <0xc0e00000 0xbb800>;
++        width = <480>; height = <800>; stride = <960>; format = "r5g6b5";
++    };
++};

@@ -1,0 +1,2 @@
+config BR2_PACKAGE_LCD_SHELL
+	bool "lcd-shell"
