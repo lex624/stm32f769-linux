@@ -1,0 +1,39 @@
+# Optional: Ralink/MediaTek RT5370 (148f:5370) USB Wi-Fi on CN15.
+#
+# Not in the default fragment list: cfg80211 + mac80211 + rt2800usb cost about
+# 616 KB of kernel RAM (Memory: 9580K -> 8964K available), on a board where
+# every noMMU exec needs one contiguous block. Add it to
+# BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES after usb.fragment when you need Wi-Fi.
+#
+# rt2800usb loads /lib/firmware/rt2870.bin (8 KB, from linux-firmware, version
+# 0.36) when the interface comes up. Without regulatory.db cfg80211 uses the
+# world domain, which is fine for scanning. bench/wifi-scan lists networks
+# through nl80211 without iw or libnl. Associating with a WPA2 network still
+# needs wpa_supplicant.
+CONFIG_CFG80211=y
+# CONFIG_CFG80211_DEFAULT_PS is not set
+# CONFIG_CFG80211_CRDA_SUPPORT is not set
+# CONFIG_CFG80211_WEXT is not set
+CONFIG_MAC80211=y
+CONFIG_MAC80211_RC_MINSTREL=y
+# CONFIG_MAC80211_MESH is not set
+# CONFIG_MAC80211_LEDS is not set
+# CONFIG_MAC80211_DEBUGFS is not set
+CONFIG_WLAN=y
+CONFIG_WLAN_VENDOR_RALINK=y
+CONFIG_RT2X00=y
+CONFIG_RT2800USB=y
+CONFIG_RT2800USB_RT53XX=y
+# CONFIG_RT2800USB_RT33XX is not set
+# CONFIG_RT2800USB_RT35XX is not set
+# CONFIG_RT2800USB_RT3573 is not set
+# CONFIG_RT2800USB_RT55XX is not set
+# CONFIG_RT2800USB_UNKNOWN is not set
+# CONFIG_RT2500USB is not set
+# CONFIG_RT73USB is not set
+# CONFIG_RT2X00_LIB_LEDS is not set
+# CONFIG_RT2X00_LIB_DEBUGFS is not set
+CONFIG_CRYPTO_AES=y
+CONFIG_CRYPTO_CCM=y
+CONFIG_CRYPTO_GCM=y
+CONFIG_CRYPTO_CMAC=y

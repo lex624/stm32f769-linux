@@ -22,9 +22,10 @@ define F769_BENCH_BUILD_CMDS
 	$(TARGET_CC) $(F769_BENCH_FLAGS) -Wl,-elf2flt -o $(@D)/f769-control $(F769_BENCH_REPO)/port/f769-control.c
 	$(TARGET_CC) $(F769_BENCH_FLAGS) -Wl,-elf2flt -o $(@D)/frame-sink $(F769_BENCH_REPO)/bench/frame-sink.c
 	$(TARGET_CC) $(F769_BENCH_FLAGS) -Wl,-elf2flt -o $(@D)/usb-tether $(F769_BENCH_REPO)/bench/usb-tether.c
+	$(TARGET_CC) $(F769_BENCH_FLAGS) -Wl,-elf2flt -o $(@D)/wifi-scan $(F769_BENCH_REPO)/bench/wifi-scan.c
 endef
 define F769_BENCH_INSTALL_TARGET_CMDS
 	$(INSTALL) -m 0755 $(@D)/dropbear $(@D)/ssh-listener $(TARGET_DIR)/usr/sbin/
-	$(INSTALL) -m 0755 $(@D)/dropbearkey $(@D)/bluenrg-probe $(@D)/f769-control $(@D)/frame-sink $(@D)/usb-tether $(TARGET_DIR)/usr/bin/
+	$(INSTALL) -m 0755 $(@D)/dropbearkey $(@D)/bluenrg-probe $(@D)/f769-control $(@D)/frame-sink $(@D)/usb-tether $(@D)/wifi-scan $(TARGET_DIR)/usr/bin/
 endef
 $(eval $(generic-package))
