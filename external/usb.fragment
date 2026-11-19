@@ -593,3 +593,17 @@ CONFIG_VIDEO_V4L2_I2C=y
 # CONFIG_VIDEO_WM8739 is not set
 # CONFIG_VIDEO_WM8775 is not set
 # CONFIG_XILLYUSB is not set
+# USB flash drives on CN15: usb-storage needs the SCSI disk layer, and most
+# sticks are FAT32. Costs about 164 KB of kernel RAM. Verified with a Transcend
+# JetFlash 4 GB at high speed, about 6 MB/s read.
+CONFIG_SCSI=y
+CONFIG_BLK_DEV_SD=y
+# CONFIG_SCSI_PROC_FS is not set
+# CONFIG_SCSI_LOWLEVEL is not set
+CONFIG_USB_STORAGE=y
+CONFIG_FAT_FS=y
+CONFIG_VFAT_FS=y
+CONFIG_FAT_DEFAULT_IOCHARSET="iso8859-1"
+CONFIG_NLS=y
+CONFIG_NLS_CODEPAGE_437=y
+CONFIG_NLS_ISO8859_1=y

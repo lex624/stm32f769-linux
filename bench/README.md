@@ -18,6 +18,8 @@ The Flip5 firmware offers no USB webcam mode, as `ro.usb.uvc.enabled` is unset, 
 
 A USB keyboard on CN15 types into the LCD shell. `usbhid` and `hid-generic` are built in, and the VT keyboard handler feeds `/dev/tty1`, which `lcd-shell` reads in raw mode alongside the UART. Verified with a Telink 2.4 GHz keyboard and mouse receiver (248a:8327, full speed), plugged in at boot. `CONFIG_INPUT_EVDEV` is off, so there are no `/dev/input/event*` nodes; the keyboard reaches the console but programs can't read it as an input device, and the mouse does nothing.
 
+USB flash drives use `usb-storage` with FAT/VFAT, from the storage block at the end of `external/usb.fragment`. On the bench card this kernel is the `usb-storage` boot entry. A Transcend JetFlash 4 GB was hot-plugged, enumerated at high speed as `sda` and mounted with `mount -r -t vfat /dev/sda1 /mnt/usb`. Reading a 36 MB file took 5.8 s, about 6.2 MB/s. Drop the page cache after large reads, since cached pages fragment SDRAM. Copying a large file to the card also leaves no block big enough for dropbear to start, so SSH fails until a reboot.
+
 The root boot.scr moves the device tree to 0xc0a00000, beyond the decompressor's scratch area, then starts the extlinux menu. On the original bench card the usb-bench, lcd-bench and original Linux entries are available. The first two retain the LCD and serial consoles.
 
 ## Minimum LiveKit round trip
