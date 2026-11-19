@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>F769 camera gateway</title>
+<style>
+:root{color-scheme:dark;font:1rem system-ui;background:#132025;color:#edf6f4}
+main{margin:2rem auto;padding:0 1rem;max-width:34rem}
+label{display:block;margin-top:1rem}input,button{font:inherit;border:1px solid #78938b;border-radius:.35rem;padding:.65rem}
+input{display:block;width:100%;box-sizing:border-box;margin-top:.25rem}button{margin:.75rem .3rem 0 0}
+video{width:100%;margin-top:1rem;background:#0a1012}output{display:block;margin:.6rem 0}
+</style></head><body><main><h1>Discovery camera gateway</h1>
+<form id="connect"><label>LiveKit WebSocket URL<input id="url" type="url" placeholder="wss://…" required></label>
+<label>Short-lived room token<input id="token" type="password" autocomplete="off" required></label>
+<label>Controller participant identity<input id="controller" required></label>
+<button id="join">Join and publish camera</button><button id="leave" type="button" disabled>Disconnect</button></form>
+<output id="status" role="status">Disconnected</output>
+<video id="preview" autoplay playsinline muted hidden></video>
+<button type="button" id="ble">Connect BLE board</button><output id="board">Board disconnected</output>
+<output id="axes">Waiting for control data</output><script type="module" src="/main.js"></script></main></body></html>
