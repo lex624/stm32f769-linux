@@ -103,7 +103,12 @@ int main(int argc, char **argv)
         usleep(50000);
         if (!serving) break;
         int result = serve(irq);
-        if (result != 3) return result;
+        if (result != 3) {
+            set(reset, 0);
+            usleep(10000);
+            set(reset, 1);
+            return result;
+        }
     }
     if (serving) return 1;
     unsigned char data[255], version[] = {1, 1, 0x10, 0};
@@ -129,6 +134,7 @@ int main(int argc, char **argv)
 
 /* Send a BlueNRG-MS HCI command and collect its matching Command Complete.
  * The return parameters begin at event byte 7, after the status. */
+static unsigned last_name_handle;
 static unsigned hci(int irq, unsigned opcode, const unsigned char *args, unsigned size)
 {
     unsigned char request[64] = {1, opcode & 255, opcode >> 8, size}, event[255];
@@ -151,6 +157,7 @@ static unsigned hci(int irq, unsigned opcode, const unsigned char *args, unsigne
                     fprintf(stderr, "HCI %04x status %02x\n", opcode, event[6]);
                     exit(1);
                 }
+                if (opcode == 0xfc8a && n >= 11) last_name_handle = event[9] | event[10] << 8;
                 return n >= 9 ? event[7] | event[8] << 8 : 0;
             }
         }
@@ -165,10 +172,13 @@ static int serve(int irq)
     /* UUIDs use Bluetooth little-endian byte order over the controller bus. */
     const unsigned char uuid[16] = {1,0,0,0,0x69,0xf7,0x94,0xa1,0x6e,0x4a,0xb8,0x12,0x10,0xa6,0xf4,0xd6};
     unsigned char service[19] = {2}, characteristic[25] = {0};
-    unsigned char adv[36] = {0, 0xa0,0, 0xe0,0, 1,0, 0, 17,7};
+    unsigned char adv[36] = {0, 0xa0,0, 0xe0,0, 1,0, 5,9,'F','7','6','9',17,7};
     unsigned char gap[] = {1,0,4}, props[] = {6,8,0,1,16,0}, scan[32] = {6,5,9,'F','7','6','9'};
     hci(irq, 0xfd01, NULL, 0); /* GATT Init */
-    hci(irq, 0xfc8a, gap, sizeof(gap)); /* GAP peripheral, privacy disabled */
+    unsigned gap_service = hci(irq, 0xfc8a, gap, sizeof(gap)); /* GAP peripheral, privacy disabled */
+    unsigned char name[] = {gap_service, gap_service >> 8, last_name_handle,
+                            last_name_handle >> 8, 0,4,'F','7','6','9'};
+    hci(irq, 0xfd06, name, sizeof(name));
     memcpy(service + 1, uuid, 16);
     service[17] = 1; service[18] = 4;
     unsigned svc = hci(irq, 0xfd02, service, sizeof(service));
@@ -177,9 +187,9 @@ static int serve(int irq)
     characteristic[3] = 2;
     memcpy(characteristic + 19, props, sizeof(props));
     unsigned value_handle = 1 + hci(irq, 0xfd04, characteristic, sizeof(characteristic));
-    memcpy(adv + 10, uuid, 16);
+    memcpy(adv + 15, uuid, 16);
     hci(irq, 0x2009, scan, sizeof(scan)); /* scan response supplies the name */
-    hci(irq, 0xfc83, adv, 30);
+    hci(irq, 0xfc83, adv, 35);
     fprintf(stderr, "F769 advertising; waiting for one six-byte write\n");
     /* Stop advertising after one complete diagnostic; the next run resets the radio. */
     for (int i = 0; i < 18000; i++) {
