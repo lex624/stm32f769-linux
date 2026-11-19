@@ -1,0 +1,20 @@
+#!/bin/sh
+# The bench adapter learns the Discovery's current MAC from its first ARP
+# request. Link negotiation can finish several seconds after ifup returns.
+case "$1" in
+    start)
+        (
+            i=0
+            while [ "$i" -lt 30 ]; do
+                read -r carrier < /sys/class/net/eth0/carrier
+                if [ "$carrier" = 1 ]; then
+                    /bin/ping 10.77.77.1
+                    exit
+                fi
+                i=$((i + 1))
+                /bin/sleep 1
+            done
+        ) </dev/null >/dev/null 2>&1 &
+        ;;
+esac
+exit 0
