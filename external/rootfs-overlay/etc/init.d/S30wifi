@@ -1,0 +1,20 @@
+#!/bin/sh
+# Wi-Fi on CN15: start wpa_supplicant before the other bench daemons. Its
+# flat binary needs one free order-7 (512 KB) block, which only exists while
+# SDRAM is still unfragmented early in boot. usb-tether (S50) runs DHCP when
+# wlan0 associates. Needs the usb-wifi kernel (external/wifi.fragment) and
+# /etc/wpa_supplicant.conf (see wpa_supplicant.conf.example); without either,
+# this does nothing. start-stop-daemon -b instead of wpa_supplicant -B,
+# because daemon() needs fork.
+CONF=/etc/wpa_supplicant.conf
+case "$1" in
+    start)
+        [ -e /sys/class/net/wlan0 ] && [ -r "$CONF" ] || exit 0
+        start-stop-daemon -S -b -m -p /run/wpa_supplicant.pid \
+            -x /usr/sbin/wpa_supplicant -- -i wlan0 -D nl80211 -c "$CONF"
+        ;;
+    stop)
+        start-stop-daemon -K -p /run/wpa_supplicant.pid
+        ;;
+esac
+exit 0

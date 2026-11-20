@@ -1,0 +1,26 @@
+From: STM32F769 bench <bench@localhost>
+Subject: [PATCH] wifi: rt2800usb: shrink the RX queue to 16 entries on noMMU
+
+Each RX queue entry holds a preallocated skb of about 4.3 KB, which
+kmalloc rounds to 8 KB: 128 entries pin 1 MB of kernel memory. On the
+16 MB STM32F769I-DISCO that leaves no contiguous 256 KB block for exec
+once wpa_supplicant is running. 16 entries are enough for this link.
+
+---
+--- a/drivers/net/wireless/ralink/rt2x00/rt2800usb.c	2026-11-20 08:04:45.884427701 +0000
++++ b/drivers/net/wireless/ralink/rt2x00/rt2800usb.c	2026-11-20 08:04:45.901433161 +0000
+@@ -719,7 +719,13 @@
+ 
+ 	switch (queue->qid) {
+ 	case QID_RX:
+-		queue->limit = 128;
++		/*
++		 * Every RX entry keeps a preallocated ~4.3 KB skb, which lands in
++		 * an 8 KB slab: 128 entries pin 1 MB. On a 16 MB noMMU STM32F7
++		 * that memory, scattered in 8 KB pieces, is what every exec needs
++		 * as one contiguous block. 16 entries keep 128 KB.
++		 */
++		queue->limit = 16;
+ 		queue->data_size = AGGREGATION_SIZE;
+ 		queue->desc_size = RXINFO_DESC_SIZE;
+ 		queue->winfo_size = rxwi_size;

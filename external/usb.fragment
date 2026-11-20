@@ -607,3 +607,8 @@ CONFIG_FAT_DEFAULT_IOCHARSET="iso8859-1"
 CONFIG_NLS=y
 CONFIG_NLS_CODEPAGE_437=y
 CONFIG_NLS_ISO8859_1=y
+# The TCP source-port perturbation table defaults to 2^16 entries: one 256 KB
+# contiguous allocation at boot. 2^8 (1 KB) is plenty for a bench board and
+# leaves that block for exec. The option is only visible with EXPERT.
+CONFIG_EXPERT=y
+CONFIG_INET_TABLE_PERTURB_ORDER=8

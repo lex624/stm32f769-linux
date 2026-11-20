@@ -1,0 +1,8 @@
+# Copy to /etc/wpa_supplicant.conf on the board (never commit the real one).
+# Generate psk with: wpa_passphrase "<ssid>" "<passphrase>" on a PC, and keep
+# only the 64-hex psk= line so the passphrase itself is not stored.
+network={
+    ssid="YOUR_SSID"
+    key_mgmt=WPA-PSK
+    psk=0000000000000000000000000000000000000000000000000000000000000000
+}
