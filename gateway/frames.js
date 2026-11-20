@@ -12,13 +12,13 @@ export function frameSize(width, height, maxWidth = FRAME_WIDTH) {
   return [even(width), even(height)];
 }
 
-// Accept only plain http(s) URLs; the board serves POST /frame.
-export function frameUrl(text) {
+// Accept only plain http(s) URLs; the board serves POST /frame and POST /control.
+export function frameUrl(text, defaultPath = '/frame') {
   let url;
   try { url = new URL(String(text).trim()); } catch { return null; }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
   if (url.username || url.password) return null;
-  if (url.pathname === '/' || url.pathname === '') url.pathname = '/frame';
+  if (url.pathname === '/' || url.pathname === '') url.pathname = defaultPath;
   return url.href;
 }
 

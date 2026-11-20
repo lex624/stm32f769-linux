@@ -9,6 +9,22 @@ Android Chrome publishes the rear camera to a LiveKit room over Wi-Fi or cellula
 4. Enter the server URL, phone token and exact authorized controller identity. Select **Publish phone camera** if video is wanted, then tap **Join room**. Android asks for camera permission when video is selected. A second participant in the same room should receive the video. Disconnect stops publication. Microphone capture is not requested.
 5. From the reference controller send a gamepad event. The phone displays the two axes even when no shield is attached. Root access is unnecessary.
 
+## Wi-Fi control bench
+
+When no BLE board is connected, the gateway can POST each control sample to the board's `frame-sink` instead. Set **Board control URL** to `http://<board>:8090/control`, for example the board's Wi-Fi address.
+- **Body:** the same 6-byte frame used over BLE (see the contract table below).
+- **Pacing:** the gateway drops new samples while a POST is pending, so a slow link never builds a queue.
+- **Board side:** `frame-sink` rejects a wrong version or out-of-range axes with 400. It logs every 50th sample to the console.
+- **Reading back:** `GET /control` returns the count, the last values and `age_ms`, the time since the last sample.
+
+Anything that drives actuators must stop when `age_ms` grows.
+
+Verified 20 November 2026 with LiveKit Server 1.13.11 on the LAN and a Python controller sending at 20 Hz for 60 s:
+- **Throughput:** the controller sent 1177 samples. The Flip5 forwarded 1152 over Wi-Fi with no failures, skipping the rest while a POST was pending, and the board received all 1152.
+- **Camera:** it published at about 28 fps throughout.
+
+Use Chrome on Android: Firefox has no Web Bluetooth, and Chrome asks for the Nearby devices permission on the first BLE scan. With `adb reverse`, forward only the page port (5173) to the phone. Give the phone the server's LAN address: WebRTC from Android cannot use a candidate on 127.0.0.1 tunnelled by adb.
+
 ## BLE bench
 The IDB05A1 carries an SPBTLE-RF network processor. The F769 must initialize its SPI transport, IRQ and reset, register the service below and advertise the service UUID before **Connect BLE board** will find it. Start the one-write diagnostic with `bluenrg-probe --serve` on the Discovery. The factory D3 clock wiring was verified on the bench. A generic pairing in Android settings does not install the service.
 

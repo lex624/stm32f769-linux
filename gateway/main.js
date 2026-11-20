@@ -5,6 +5,19 @@ import {FRAME_QUALITY, frameSize, frameUrl, runFrameLoop} from './frames.js';
 const el = id => document.getElementById(id);
 let active, device, characteristic, sequence = 0, writing = false;
 let frameRun;
+let wifiSent = 0, wifiFailed = 0;
+
+// Wi-Fi alternative to BLE: POST the same 6-byte frame to the board's frame-sink.
+async function postControl(url, frame) {
+  try {
+    const res = await fetch(url, {method: 'POST', body: frame,
+      headers: {'Content-Type': 'application/octet-stream'},
+      signal: AbortSignal.timeout(2000), targetAddressSpace: 'private'});
+    if (!res.ok) throw new Error('Board answered ' + res.status);
+    wifiSent++;
+  } catch { wifiFailed++; }
+  el('controlStatus').textContent = `Sent ${wifiSent} samples over Wi-Fi, ${wifiFailed} failed`;
+}
 
 function resetRoom(room) {
   if (active !== room) return;
@@ -33,10 +46,18 @@ el('connect').onsubmit = async event => {
     if (!axes) return;
     el('axes').textContent = 'Throttle ' + axes[0] + ' · Steering ' + axes[1];
     // Drop samples during a pending write; delayed joystick events should not queue.
-    if (!characteristic || writing) return;
+    if (writing) return;
+    if (characteristic) {
+      writing = true;
+      try { await characteristic.writeValueWithResponse(encodeFrame(sequence++, axes)); }
+      catch { device?.gatt.disconnect(); }
+      finally { writing = false; }
+      return;
+    }
+    const url = frameUrl(el('controlUrl').value, '/control');
+    if (!url) return;
     writing = true;
-    try { await characteristic.writeValueWithResponse(encodeFrame(sequence++, axes)); }
-    catch { device?.gatt.disconnect(); }
+    try { await postControl(url, encodeFrame(sequence++, axes)); }
     finally { writing = false; }
   });
   try {
@@ -50,10 +71,11 @@ el('connect').onsubmit = async event => {
     }
     el('leave').disabled = false;
     el('status').textContent = 'Connected as ' + room.localParticipant.identity;
-  } catch {
+  } catch (error) {
     await room.disconnect();
     resetRoom(room);
-    el('status').textContent = 'Connection or camera failed. Check room credentials, network and camera permission.';
+    el('status').textContent = 'Connection or camera failed (' + (error?.message || error) +
+      '). Check room credentials, network and camera permission.';
   }
 };
 el('leave').onclick = () => active?.disconnect();

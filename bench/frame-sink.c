@@ -1,7 +1,12 @@
-/* Receives JPEG frames from the Android gateway over USB tethering (CN15).
+/* Receives JPEG frames and control samples from the Android gateway, over
+ * USB tethering (CN15) or Wi-Fi.
  *
  *   POST /frame      body is one image/jpeg frame, stored as /tmp/frame.jpg
  *   GET  /frame.jpg  returns the latest stored frame
+ *   POST /control    body is the 6-byte control frame also used over BLE:
+ *                    version 1, sequence, int16 LE throttle and steering
+ *                    in thousandths (each within -1000..1000)
+ *   GET  /control    text: count, last sequence, throttle, steering, age
  *   OPTIONS *        CORS and Private Network Access preflight for Chrome
  *
  * One connection at a time, no fork: the F769 has about 3 MiB free. The body
@@ -28,9 +33,19 @@ static const char cors[] =
     "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n"
     "Access-Control-Allow-Headers: Content-Type\r\n"
     "Access-Control-Allow-Private-Network: true\r\n"
+    "Access-Control-Max-Age: 600\r\n"
     "Connection: close\r\n";
 
 static unsigned long frames;
+
+/* Last accepted control sample. This bench only reports it; anything driving
+ * actuators must also stop when samples go stale (see "age" in GET /control). */
+static struct {
+    unsigned long count;
+    unsigned sequence;
+    int throttle, steering;
+    struct timeval at;
+} control;
 
 static int send_all(int fd, const void *buf, size_t len)
 {
@@ -109,6 +124,57 @@ static void store_frame(int fd, char *buf, size_t cap, size_t have, long len)
         printf("frame-sink: %lu frames, last %ld bytes\n", frames, len), fflush(stdout);
 }
 
+static void kmsg(const char *line)
+{
+    int k = open("/dev/kmsg", O_WRONLY);
+    if (k >= 0) { if (write(k, line, strlen(line)) < 0) {} close(k); }
+}
+
+static void store_control(int fd, char *buf, size_t have, long len)
+{
+    unsigned char *f = (unsigned char *)buf;
+    while (len == 6 && have < 6) {
+        ssize_t n = read(fd, buf + have, 6 - have);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) break;
+        have += (size_t)n;
+    }
+    if (len != 6 || have < 6 || f[0] != 1) { reply(fd, "400 Bad Request", NULL); return; }
+    int throttle = (short)(f[2] | f[3] << 8), steering = (short)(f[4] | f[5] << 8);
+    if (throttle < -1000 || throttle > 1000 || steering < -1000 || steering > 1000) {
+        reply(fd, "400 Bad Request", NULL);
+        return;
+    }
+    control.count++;
+    control.sequence = f[1];
+    control.throttle = throttle;
+    control.steering = steering;
+    gettimeofday(&control.at, NULL);
+    reply(fd, "204 No Content", NULL);
+    if (control.count == 1 || control.count % 50 == 0) {
+        char line[128];
+        snprintf(line, sizeof line, "<5>frame-sink: control %lu sequence=%u throttle=%d steering=%d\n",
+                 control.count, control.sequence, throttle, steering);
+        kmsg(line);
+    }
+}
+
+static void serve_control(int fd, char *buf, size_t cap)
+{
+    char body[160];
+    long age_ms = -1;
+    if (control.count) {
+        struct timeval now;
+        gettimeofday(&now, NULL);
+        age_ms = (now.tv_sec - control.at.tv_sec) * 1000L + (now.tv_usec - control.at.tv_usec) / 1000;
+    }
+    int b = snprintf(body, sizeof body, "count=%lu sequence=%u throttle=%d steering=%d age_ms=%ld\n",
+                     control.count, control.sequence, control.throttle, control.steering, age_ms);
+    int n = snprintf(buf, cap, "HTTP/1.1 200 OK\r\n%sContent-Type: text/plain\r\n"
+                     "Content-Length: %d\r\n\r\n%s", cors, b, body);
+    if (n > 0) send_all(fd, buf, (size_t)n);
+}
+
 static void serve_frame(int fd, char *buf, size_t cap)
 {
     int in = open(FRAME, O_RDONLY);
@@ -158,6 +224,12 @@ int main(int argc, char **argv)
             long len = content_length(buf);
             memmove(buf, buf + hlen, got - (size_t)hlen);
             store_frame(fd, buf, sizeof buf, got - (size_t)hlen, len);
+        } else if (!strncmp(buf, "POST /control ", 14)) {
+            long len = content_length(buf);
+            memmove(buf, buf + hlen, got - (size_t)hlen);
+            store_control(fd, buf, got - (size_t)hlen, len);
+        } else if (!strncmp(buf, "GET /control ", 13)) {
+            serve_control(fd, buf, sizeof buf);
         } else if (!strncmp(buf, "GET /frame.jpg ", 15)) {
             serve_frame(fd, buf, sizeof buf);
         } else {

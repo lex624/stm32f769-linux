@@ -16,6 +16,11 @@ test('board URL defaults to /frame and rejects other schemes', () => {
     assert.equal(frameUrl(bad), null);
 });
 
+test('control URL defaults to /control', () => {
+  assert.equal(frameUrl('http://192.168.0.99:8090', '/control'), 'http://192.168.0.99:8090/control');
+  assert.equal(frameUrl('http://192.168.0.99:8090/control', '/control'), 'http://192.168.0.99:8090/control');
+});
+
 test('loop posts one frame at a time and backs off after a failure', async () => {
   let inFlight = 0, maxInFlight = 0, calls = 0;
   const sleeps = [];
