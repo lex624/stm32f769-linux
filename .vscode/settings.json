@@ -2,6 +2,10 @@
   // Robot suite: interpreter with robotframework, robocop and robotcode installed.
   // Create it with: py -3 -m venv .venv  then  .venv\Scripts\python -m pip install -r robot/requirements.txt
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  // RobotCode's own interpreter setting: without it RobotCode follows whatever
+  // interpreter the Python extension last selected, and a Python without
+  // robotframework means no test discovery (no run buttons)
+  "robotcode.python": "${workspaceFolder}/.venv/Scripts/python.exe",
   // Profiles come from robot.toml (hosted = no hardware, dell = the bench)
   "robotcode.robot.pythonPath": ["robot/lib"],
   "robotcode.analysis.diagnosticMode": "workspace",
