@@ -1,0 +1,69 @@
+# Hardware-in-the-loop tests on the bench's self-hosted runner (the Dell, with the
+# STM32F769I-DISCO on COM9 and bench Ethernet).
+#
+# This repository is public. A pull_request trigger would let anyone's fork run
+# code on the bench PC, so this workflow only runs by manual dispatch (users with
+# write access) or on the nightly schedule (code on the default branch).
+# Never add pull_request or pull_request_target here.
+name: hil
+
+on:
+  workflow_dispatch:
+    inputs:
+      cadence:
+        description: Cadence tag to run (sets reliability iterations)
+        type: choice
+        options: [postmerge, nightly, weekend]
+        default: postmerge
+      exclude:
+        description: Equipment tags to skip, space separated (e.g. needsphone needssensortile)
+        type: string
+        default: needsphone needssensortile needsflashdrive needslivekit
+  schedule:
+    - cron: "30 1 * * *"
+
+permissions:
+  contents: read
+
+# One run at a time owns the bench
+concurrency:
+  group: f769-bench
+  cancel-in-progress: false
+
+jobs:
+  hil-f769:
+    if: github.repository_owner == 'lex624'
+    runs-on: [self-hosted, windows, f769-bench]
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Robot Framework and libraries
+        run: python -m pip install -r robot/requirements.txt
+
+      # Inputs reach the shell as environment variables, never inline in the script
+      - name: Run hardware tests
+        shell: pwsh
+        env:
+          CADENCE: ${{ inputs.cadence || 'nightly' }}
+          EXCLUDE: ${{ inputs.exclude || 'needsphone needssensortile needsflashdrive needslivekit' }}
+        run: |
+          $excludeArgs = @()
+          foreach ($tag in ($env:EXCLUDE -split '\s+' | Where-Object { $_ })) { $excludeArgs += '--exclude', $tag }
+          robot --argumentfile robot/args/hil-dell.args --include $env:CADENCE @excludeArgs robot/suites/System_Test_Suite
+
+      - name: Upload Robot results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-hil-f769-results
+          path: robot/output/hil-dell
+          if-no-files-found: error

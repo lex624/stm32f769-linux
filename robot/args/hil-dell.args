@@ -1,0 +1,9 @@
+# Hardware tests on the Dell bench (self-hosted runner, or locally from the repo root):
+#   robot --argumentfile robot/args/hil-dell.args --include postmerge robot/suites/System_Test_Suite
+# Choose the cadence with --include postmerge, nightly or weekend. Extra options
+# go before the suite path. Exclude equipment that is not connected, e.g.
+#   --exclude needsphone
+--name System Test
+--variablefile robot/benches/dell.yaml
+--metadata Device:stm32f769
+--outputdir robot/output/hil-dell

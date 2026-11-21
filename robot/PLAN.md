@@ -7,7 +7,8 @@ The goal is to turn the manual bench checks into a Robot Framework suite. It run
 We build it one section at a time. Each section starts with a single simple test and grows from there.
 
 ## Conventions (same style as our existing system-test suites)
-- **Layout:** `robot/suites/System_Test_Suite/` holds numbered suite files (`10_...`, `20_...`) and an `__init__.robot` with the suite-wide setup and teardown. Shared keywords live in `robot/resources/*.robot`, Python helpers in `robot/lib/*.py`, and run configurations in `robot/args/*.args`.
+- **Layout:** `robot/suites/System_Test_Suite/` holds numbered suite files (`10_...`, `20_...`) and an `__init__.robot` with the suite-wide setup and teardown. Shared keywords live in `robot/resources/*.robot`, device adapters in `robot/resources/devices/`, shared test data in `robot/data/`, and run configurations in `robot/args/*.args`.
+- **Libraries, not custom Python:** keywords are built from Robot libraries: standard ones (Process, OperatingSystem, String, Collections), SerialLibrary, RequestsLibrary, and SSHLibrary when it's needed. One-line `Evaluate` expressions are fine. A capability with no library gets an existing external tool, not a new Python file.
 - **No wrapper script:** each run configuration is a Robot argument file, run as `robot --argumentfile robot/args/premerge.args robot/suites/System_Test_Suite`. Extra options go between the argument file and the suite path, for example `--variable DEBUG:True` or `--test "BLD-01*"`. The suite path is not in the argument file, because Robot reads anything after a data path as another data path.
 - **Missing tools:** a tool that isn't installed (gcc, shellcheck, ruff, gitleaks, node) **skips** its test locally and **fails** it in CI, where `--variable REQUIRE_ALL_TOOLS:True` is set.
 - **VS Code:** `robot.toml` holds RobotCode profiles, `hosted` and `dell`, for the editor's test explorer. CI uses the argument files. A runner script earns its place only for something argument files cannot do, and a suite setup can usually do that too.
@@ -65,7 +66,17 @@ These are the lessons from bring-up. Each one becomes a keyword, so no test has 
 - **Memory:** every exec needs one contiguous block, and BusyBox needs 256 KB. `Free Blocks Of Order  6` reads `/proc/buddyinfo`. Board checks prefer hush built-ins (`read`, `echo`, globbing), which work even when nothing can exec.
 - **SSH:** roughly one dropbear session per boot. `Run On Board` uses SSH, which logs in to `lsh`, and falls back to serial.
 - **Writes:** `Sync Board Storage` sends sysrq `s` and waits for "Emergency Sync complete". It must run before any reboot that follows a write.
-- **Kernel loading:** `Load Kernel To RAM` is U-Boot `loadx` over XMODEM, followed by a `crc32` check. It never touches the card.
+- **Console driving (SerialLibrary), all found on this bench:**
+  - Import SerialLibrary with `encoding=iso-8859-1`, because its default is `hexlify`.
+  - Open ports with a non-zero `inter_byte_timeout`. The default of 0 makes `Read Until` return empty on Windows.
+  - Type commands a character at a time (10 ms), because the board's UART drops characters from a whole line.
+  - End each command with a split-quote marker, `echo "__RC""_N__"`, so stale prompts cannot satisfy a wait.
+  - Retry sync and reset until the kernel or U-Boot confirms them.
+  - After boot, wait for the console to go quiet before typing.
+- **Kernel loading:** U-Boot `loadx` needs an XMODEM sender, and no Robot library provides one. Proposed library-only alternative:
+  - copy the candidate kernel to the card under a new name (`/boot/zImage-test`) with SSHLibrary `Put File`;
+  - in U-Boot, `load mmc` it, check its size and `crc32`, then `bootz` it once;
+  - the default boot entry is never changed, so a bad kernel only costs a reset.
 - **Phone:** screenshots need `-d <display id>`. Check the foreground app before acting, so we never disturb someone using the phone.
 
 ## Sections
@@ -84,10 +95,13 @@ These are the lessons from bring-up. Each one becomes a keyword, so no test has 
 
 ## Resources and libraries
 - **`common.robot`:** imports, global constants, suite setup and teardown, reading the cadence tags.
-- **`serial.robot`** plus `lib/serial_console.py` (pyserial):
-  - `Stop At U-Boot`, `Run On Console`, `Wait For Shell`;
-  - `Load Kernel To RAM`, using the `xmodem` package from PyPI instead of a hand-rolled sender;
-  - `Sync Board Storage`, `Reboot Board`.
+- **`serial_console.robot`** (SerialLibrary): `Open Device Console`, `Wait For Console Text`, `Wait For Console Quiet`, `Send Console Line`, `Run Console Command`.
+- **`devices/stm32f769.robot`** (the F769 adapter):
+  - `Wait For Device Ready`, `Run On Device`, `Read Device File`;
+  - `Get Device Kernel Release`, `Get Device Uptime`;
+  - `Sync Device Storage`, `Reset Device`, `Restart Device`;
+  - `Stop At Bootloader`, `Run In Bootloader`, `Boot From Bootloader`, `Return Device To Linux`.
+- **`control_frame.robot`** (RequestsLibrary): the shared control-frame vectors and frame-sink's `/control` contract.
 - **`board.robot`** (SSHLibrary):
   - `Run On Board`, with the serial fallback;
   - `Read Board File` (built-in `read`), `Free Blocks Of Order`, `Process Should Be Running`.
@@ -121,7 +135,7 @@ These are the lessons from bring-up. Each one becomes a keyword, so no test has 
 |---|---|---|
 | 0 | skeleton: layout, `common.robot`, runner, bench YAML, `premerge.yml` with `BLD-01` | a green premerge run on GitHub with `log.html` attached |
 | 1 | section 10 complete (host builds, lint, `frame-sink` host contract) | premerge catches a deliberately broken C build and a malformed frame |
-| 2 | self-hosted runner, `hil.yml`, section 20 (`INS-01` serial and version, then RAM-boot via `loadx`) | dispatch run boots a kernel from RAM and reaches the shell |
+| 2 | self-hosted runner, `hil.yml`, section 20: INS-01 console and kernel release, INS-02 bootloader stop and boot back, INS-03 restart reliability | INS-01 to INS-03 pass on the bench from a dispatch run. Done locally 2026-11-21 (3 of 3, and 3 restarts at nightly cadence); the runner still needs registering. Kernel install via card plus U-Boot is a follow-up. |
 | 3 | sections 30 and 40 | nightly run reports the memory budget and SSH reliability |
 | 4 | sections 50 and 60 on hardware | USB and control contract green on the bench |
 | 4b | section 65, SensorTile telemetry (#4) | all six telemetry types decoded on a dispatch run |
