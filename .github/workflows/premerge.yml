@@ -1,0 +1,50 @@
+# Premerge checks: the Robot suite's hardware-free tests on a GitHub-hosted runner.
+# Hardware tests run on the self-hosted bench runner in a separate workflow and
+# must never be triggered by pull requests (this repository is public).
+name: premerge
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: premerge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  robot-premerge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: gateway/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: robot/requirements.txt
+
+      - name: Install Robot Framework
+        run: pip install -r robot/requirements.txt
+
+      - name: Run premerge tests
+        run: python robot/run_robot.py -b robot/benches/hosted.yaml -i premerge -e "needs*" -o robot/output/premerge
+
+      - name: Upload Robot results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-premerge-results
+          path: robot/output/premerge
+          if-no-files-found: error
