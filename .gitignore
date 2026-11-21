@@ -5,3 +5,5 @@ dist/
 !.env.example
 output/
 *.log
+.venv/
+__pycache__/

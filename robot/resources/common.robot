@@ -21,6 +21,12 @@ ${REPO_ROOT}   ${{ pathlib.Path(r'${CURDIR}').parents[1].as_posix() }}
 ${GATEWAY_DIR}   ${REPO_ROOT}/gateway
 # Generous: npm ci on a cold cache downloads the whole gateway toolchain
 ${BUILD_STEP_TIMEOUT}   10 minutes
+# CI sets this to True so a missing tool fails the run; locally a missing tool
+# (no gcc on Windows, say) skips the test instead
+${REQUIRE_ALL_TOOLS}   False
+${HOST_BUILD_DIR}   ${OUTPUT DIR}/host-build
+# Host compile flags for the board's C tools: the board build adds -mcpu and elf2flt
+${HOST_CFLAGS}   -std=gnu11 -Wall -Wextra -Werror -O2
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -32,15 +38,43 @@ Initialise System Test
    Set Global Variable   ${DEBUG_ENABLED}
    # &{OPTIONS} (RF 5.0+) exposes the command line's include and exclude tag patterns
    Log   Bench ${BENCH_NAME}: include ${OPTIONS.include} exclude ${OPTIONS.exclude}   console=True
-   # A run that selects hardware tests on a bench without hardware would only
-   # produce a wall of connection failures, so stop straight away instead.
-   ${excludes_hardware}=   Evaluate   any(pattern.startswith('needs') for pattern in $OPTIONS.exclude)
-   IF   not ${HAS_HARDWARE} and not ${excludes_hardware}
-      Fatal Error   Bench ${BENCH_NAME} has no hardware: exclude the needs* tags (--exclude needs*). Bailing...
+
+Require Bench Hardware
+   [Documentation]   Suite setup step for every suite with needs* tests. Running them on
+   ...               a bench without hardware would only produce a wall of connection
+   ...               failures, so stop the whole run straight away instead. Kept out of
+   ...               __init__.robot so build-only runs (CI, the editor) never trip it.
+   IF   not ${HAS_HARDWARE}
+      Fatal Error   Bench ${BENCH_NAME} has no hardware for this suite: use a hardware bench file or --exclude needs*. Bailing...
    END
 
 Tear Down System Test
    Log   System test finished on bench ${BENCH_NAME}   console=True
+
+Require Tool
+   [Documentation]   Checks ${tool} runs (``${tool} ${version_args}``). When it does not,
+   ...               fails if ${REQUIRE_ALL_TOOLS} is true (CI) and skips otherwise (local).
+   [Arguments]   ${tool}   ${version_args}=--version
+   ${result}=   Run Process   ${tool} ${version_args}   shell=True   stderr=STDOUT
+   IF   ${result.rc} != 0
+      IF   ${REQUIRE_ALL_TOOLS}
+         Fail   ${tool} is required on this runner but is not installed
+      ELSE
+         Skip   ${tool} is not installed here; CI runs this test
+      END
+   END
+   ${first_line}=   Get Line   ${result.stdout}   0
+   Log   ${tool}: ${first_line}
+
+Build Host Tool
+   [Documentation]   Compiles one of the board's C tools for the host with ${HOST_CFLAGS}
+   ...               and returns the executable's path. Host builds catch warnings and
+   ...               let the host run the same code the board runs.
+   [Arguments]   ${source}   ${name}
+   Require Tool   gcc
+   Create Directory   ${HOST_BUILD_DIR}
+   Run Build Step   gcc ${HOST_CFLAGS} -o "${HOST_BUILD_DIR}/${name}" "${REPO_ROOT}/${source}"   ${REPO_ROOT}
+   RETURN   ${HOST_BUILD_DIR}/${name}
 
 Run Build Step
    [Documentation]   Runs one build or test command in ${cwd} and fails with its output if it fails.

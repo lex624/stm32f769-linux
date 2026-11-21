@@ -3,3 +3,7 @@
 robotframework==7.5.1
 # Bench variable files are YAML (robot/benches/*.yaml).
 PyYAML==6.0.4
+# Dev tools the Build tests call; pip installs them on every OS, including the
+# shellcheck binary (shellcheck-py), so local runs match CI.
+ruff==0.8.4
+shellcheck-py==0.10.0.1

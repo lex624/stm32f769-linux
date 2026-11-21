@@ -152,7 +152,7 @@ static unsigned hci(int irq, unsigned opcode, const unsigned char *args, unsigne
             int n = transfer(event, sizeof(event), 0);
             if (n && getenv("HCI_TRACE")) { fprintf(stderr,"rx"); for(int j=0;j<n;j++) fprintf(stderr," %02x",event[j]); fputc(10,stderr); }
             if (n >= 7 && event[0] == 4 && event[1] == 14 &&
-                (event[4] | event[5] << 8) == opcode) {
+                (unsigned)(event[4] | event[5] << 8) == opcode) {
                 if (event[6]) {
                     fprintf(stderr, "HCI %04x status %02x\n", opcode, event[6]);
                     exit(1);
@@ -202,7 +202,7 @@ static int serve(int irq)
         }
         if (n >= 7 && event[0] == 4 && event[1] == 5) return 3;
         if (n == 18 && event[0] == 4 && event[1] == 255 &&
-            event[3] == 1 && event[4] == 12 && (event[7] | event[8]<<8) == value_handle &&
+            event[3] == 1 && event[4] == 12 && (unsigned)(event[7] | event[8]<<8) == value_handle &&
             event[9] == 6 && event[10] == 0 && event[11] == 0) {
             if (event[12] != 1) return 1;
             int throttle = (short)(event[14] | event[15]<<8);
