@@ -1,14 +1,25 @@
 # The Dell bench: STM32F769I-DISCO on COM9 and bench Ethernet, Wi-Fi dongle on
 # CN15, X-NUCLEO-IDB05A1 BLE shield, Galaxy Z Flip5 on wireless adb.
 # No secrets here: LiveKit keys are generated per run and Wi-Fi credentials
-# stay on the board's card. Values are used from section 20 onwards.
+# stay on the board's card.
 BENCH_NAME: dell
 HAS_HARDWARE: true
-BOARD_SERIAL_PORT: COM9
-BOARD_SERIAL_BAUD: 115200
+
+# Device under test: selects robot/resources/devices/<family>.robot
+DEVICE_FAMILY: stm32f769
+EXPECTED_KERNEL_RELEASE: 5.15.211
+
+# Console (ST-LINK virtual COM port)
+CONSOLE_PORT: COM9
+CONSOLE_BAUD: 115200
+
+# Networks
 BOARD_ETH_IP: 10.77.77.2
 PC_ETH_IP: 10.77.77.1
 BOARD_WIFI_IP: 192.168.0.99
 BOARD_SSH_HOST: f769-disco
-PHONE_ADB_SERIAL: 192.168.0.35:5555
 PC_LAN_IP: 192.168.0.150
+# Set to test the board's frame-sink with the control suite (60)
+# CONTROL_BASE_URL: http://192.168.0.99:8090
+
+PHONE_ADB_SERIAL: 192.168.0.35:5555

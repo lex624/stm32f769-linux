@@ -6,7 +6,7 @@ Documentation   The six-byte control frame contract shared by the gateway (JS
 ...             the tests start a host-built frame-sink; set it to a board's
 ...             http://<ip>:8090 to run the same tests against the board.
 Resource   ../../resources/common.robot
-Library   ../../lib/ControlFrameLibrary.py
+Resource   ../../resources/control_frame.robot
 Test Tags   critical   premerge   postmerge   nightly   weekend   cap-http-control
 Test Timeout   5 minutes
 Suite Setup   Suite Set Up For Control Interface Testing
@@ -33,11 +33,11 @@ Use Frame Sink
    ...               on a free local port the first time when no board URL is given.
    IF   '${FRAME_SINK_URL}' == ''
       ${binary}=   Build Host Tool   bench/frame-sink.c   frame-sink
-      ${port}=   Get Free Tcp Port
+      ${port}=   Get Free Local Port
       Start Process   ${binary}   ${port}   127.0.0.1   alias=frame-sink
       ...   stdout=${HOST_BUILD_DIR}/frame-sink.log   stderr=STDOUT
-      Wait For Http Port   ${port}
       Set Suite Variable   ${FRAME_SINK_URL}   http://127.0.0.1:${port}
+      Wait For Frame Sink   ${FRAME_SINK_URL}
    END
    RETURN   ${FRAME_SINK_URL}
 
@@ -88,12 +88,13 @@ CTL-03 CONTROL PREFLIGHT ALLOWS THE GATEWAY PAGE
    [Documentation]   Chrome's CORS and Private Network Access preflight succeeds, and is
    ...               cacheable so it does not double every control request.
    ${url}=   Use Frame Sink
-   ${status}   ${headers}=   Send Preflight   ${url}
-   Should Be Equal As Integers   ${status}   204
-   Should Be Equal   ${headers}[access-control-allow-origin]   *
-   Should Be Equal   ${headers}[access-control-allow-private-network]   true
-   Should Contain   ${headers}[access-control-allow-methods]   POST
-   Should Be True   int(${headers}[access-control-max-age]) >= 60
+   ${response}=   Send Control Preflight   ${url}
+   Should Be Equal As Integers   ${response.status_code}   204
+   # requests' headers are case-insensitive
+   Should Be Equal   ${response.headers}[Access-Control-Allow-Origin]   *
+   Should Be Equal   ${response.headers}[Access-Control-Allow-Private-Network]   true
+   Should Contain   ${response.headers}[Access-Control-Allow-Methods]   POST
+   Should Be True   int(${response.headers}[Access-Control-Max-Age]) >= 60
 
 CTL-04 GATEWAY ENCODER MATCHES THE SHARED VECTORS
    [Documentation]   The gateway's encodeFrame turns each vector's axes and sequence into
