@@ -1,0 +1,14 @@
+# The Dell bench: STM32F769I-DISCO on COM9 and bench Ethernet, Wi-Fi dongle on
+# CN15, X-NUCLEO-IDB05A1 BLE shield, Galaxy Z Flip5 on wireless adb.
+# No secrets here: LiveKit keys are generated per run and Wi-Fi credentials
+# stay on the board's card. Values are used from section 20 onwards.
+BENCH_NAME: dell
+HAS_HARDWARE: true
+BOARD_SERIAL_PORT: COM9
+BOARD_SERIAL_BAUD: 115200
+BOARD_ETH_IP: 10.77.77.2
+PC_ETH_IP: 10.77.77.1
+BOARD_WIFI_IP: 192.168.0.99
+BOARD_SSH_HOST: f769-disco
+PHONE_ADB_SERIAL: 192.168.0.35:5555
+PC_LAN_IP: 192.168.0.150

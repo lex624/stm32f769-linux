@@ -1,0 +1,4 @@
+# Bench with no hardware: GitHub-hosted runners and any developer machine.
+# Only premerge tests run here; every needs* tag must be excluded.
+BENCH_NAME: hosted
+HAS_HARDWARE: false

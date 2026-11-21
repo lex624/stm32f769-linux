@@ -1,0 +1,9 @@
+# Hardware-free tests for every push and pull request (GitHub-hosted runner).
+# Run from the repository root:  robot --argumentfile robot/args/premerge.args
+# Add options after it for local runs, e.g. --variable DEBUG:True or --test "BLD-01*".
+--name System Test
+--variablefile robot/benches/hosted.yaml
+--include premerge
+--exclude needs*
+--outputdir robot/output/premerge
+robot/suites/System_Test_Suite
