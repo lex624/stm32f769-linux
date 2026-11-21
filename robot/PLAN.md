@@ -1,4 +1,4 @@
-# Robot test suite plan: STM32F769I-DISCO Linux bench
+# Robot test suite plan: device system test (STM32F769 first, then ESP32 and Raspberry Pi)
 
 The goal is to turn the manual bench checks into a Robot Framework suite. It runs in two places:
 - **GitHub-hosted runners**, for checks that need no hardware.
@@ -7,17 +7,56 @@ The goal is to turn the manual bench checks into a Robot Framework suite. It run
 We build it one section at a time. Each section starts with a single simple test and grows from there.
 
 ## Conventions (same style as our existing system-test suites)
-- **Layout:** `robot/suites/F769_Test_Suite/` holds numbered suite files (`10_...`, `20_...`) and an `__init__.robot` with the suite-wide setup and teardown. Shared keywords live in `robot/resources/*.robot`, Python helpers in `robot/lib/*.py`, and the runner in `robot/run_robot.py`.
-- **Files:** each file has `#~~~~#` banners around its sections and uses 3-space separators. Each suite sets `Force Tags`, a `Test Timeout` and a named `Suite Setup`.
+- **Layout:** `robot/suites/System_Test_Suite/` holds numbered suite files (`10_...`, `20_...`) and an `__init__.robot` with the suite-wide setup and teardown. Shared keywords live in `robot/resources/*.robot`, Python helpers in `robot/lib/*.py`, and run configurations in `robot/args/*.args`.
+- **No wrapper script:** each run configuration is a Robot argument file, run as `robot --argumentfile robot/args/premerge.args`. Add options after it for local runs, for example `--variable DEBUG:True` or `--test "BLD-01*"`. A runner script earns its place only for something argument files cannot do, and a suite setup can usually do that too.
+- **Robot 7.x style:**
+  - `Test Tags`, not the deprecated `Force Tags`;
+  - native `IF`/`END`, not `Run Keyword If`;
+  - `${OPTIONS.include}`/`${OPTIONS.exclude}` to read the tag sets.
+- **Init file scope:** variables and keywords defined in `__init__.robot` do not reach child suites, so shared ones live in `common.robot`.
+- **Files:** each file has `#~~~~#` banners around its sections and uses 3-space separators. Each suite sets `Test Tags`, a `Test Timeout` and a named `Suite Setup`.
 - **Test names:** an ID followed by an upper-case title, for example `BLD-01 GATEWAY UNIT TESTS PASS`. IDs use one prefix per section, listed under "Sections".
 - **Tags:**
   - *Cadence:* `premerge` (no hardware, every push and PR), `postmerge`, `nightly`, `weekend`. Reliability loops read their iteration count from the cadence tag.
-  - *Equipment:* `needsboard`, `needsserial`, `needsethernet`, `needswifi`, `needsphone`, `needsbleshield`, `needsflashdrive`, `needslivekit`, `needssensortile`. Excluding one, for example `-e needsphone`, skips every test that needs that equipment.
+  - *Equipment:* `needsboard`, `needsserial`, `needsethernet`, `needswifi`, `needsphone`, `needsbleshield`, `needsflashdrive`, `needslivekit`, `needssensortile`. Excluding one, for example `--exclude needsphone`, skips every test that needs that equipment.
   - *Weight:* `critical` and `noncritical`.
   - *Tracking:* the issue the test covers, such as `GH-1` or `GH-2`.
 - **Missing hardware:** suite setup checks the hardware is there. It calls `Fatal Error` when a required device is missing; it does not let every test fail one by one.
 - **Fallbacks:** try the preferred path first, then a fallback, and log a `WARN` when the fallback is used. For example: run over SSH, fall back to the serial console; reboot via sysrq, fall back to U-Boot reset.
 - **Bench variables:** a YAML variables file per bench (`robot/benches/dell.yaml`) holds the COM port, board and phone addresses, adb serial and LiveKit URL. It contains no secrets: the LiveKit key is generated for each run and Wi-Fi credentials stay on the card.
+
+## Device families
+The same section suites run on every device family: STM32F769I-DISCO Linux, ESP32 and Raspberry Pi. Later the SensorTile (STM32L476) joins as a BLE peer. Tests describe **behaviour**, for example "a control sample reaches the actuator" or "telemetry arrives". **Device adapters** hide the differences in images, flashing and access.
+
+- **Device descriptor:** `robot/devices/<device>.yaml` says what the device is, and nothing about how a test checks it:
+  - its family and model;
+  - its **capabilities**, such as `linux-shell`, `wifi`, `ble-peripheral`, `ble-central`, `usb-host`, `camera`, `livekit-native` (joins a room itself, e.g. with `client-sdk-esp32`) and `pwm`/`adc`;
+  - the artifacts it needs;
+  - its flash method.
+- **Adapter:** `robot/resources/devices/<family>.robot` implements one fixed keyword interface:
+
+  | Keyword | STM32F769 Linux | ESP32 | Raspberry Pi |
+  |---|---|---|---|
+  | `Flash Device Image` | RAM-boot via U-Boot `loadx` with a CRC check, or write `sdcard.img`; U-Boot through STM32CubeProgrammer | `esptool` write over USB serial | write the SD image with an SD mux (e.g. SDWire) for hands-off reflashing, or deploy over SSH to a running OS |
+  | `Reset Device`, `Wait For Device Ready` | sysrq or U-Boot reset, wait for the shell prompt on serial | esptool reset, wait for the boot banner | reboot over SSH, wait for SSH |
+  | `Run On Device` | SSH to `lsh`, falling back to the serial console | not supported (no shell); use the device's test commands over serial | SSH |
+  | `Send Control Sample`, `Read Control State` | `/control` over Wi-Fi, or BLE | same frame, over the ESP32's endpoint or BLE | same as the F769 |
+  | `Read Telemetry` | `GET /telemetry` (#4) | serial or BLE | same as the F769 |
+
+- **Selecting the device:** suites import `common.robot`. It imports the adapter named by the descriptor (`Import Resource  ${CURDIR}/devices/${DEVICE_FAMILY}.robot`), so test bodies never branch on the family.
+- **Capability tags:** tests also carry `cap-<capability>` tags, such as `cap-ble-peripheral` or `cap-linux-shell`. Each device's argument file excludes the capabilities that device lacks, so unsupported tests are left out rather than failing.
+  - If a test can only find out at run time, it calls `Skip If`.
+  - Family-only checks, such as the F769 memory budget or the ESP32 heap watermark, live in `suites/System_Test_Suite/<section>` with a `family-<name>` tag.
+- **Artifacts:**
+  - `premerge` and nightly build jobs produce one artifact set per family: F769 `zImage`, DTB and `sdcard.img`; ESP32 `.bin` plus its partition table; Pi image or packages. Each set has a manifest listing versions and checksums.
+  - Flashing keywords verify the checksum before and after writing, as the F769 `crc32` check does today.
+- **CI matrix:** the HIL workflow runs one job per device: `matrix: device: [f769, esp32, rpi]` on self-hosted runners labelled `bench-<device>`.
+  - Each job downloads its family's artifacts and runs `robot --argumentfile robot/args/hil-<device>.args`.
+  - Each job reports to its own `output/<device>/` with `--metadata Device:<device>`, and `rebot` merges the results into one report.
+- **Rollout:**
+  - The F769 adapter comes first, built in Phases 2–5.
+  - Next, an ESP32 adapter. It needs a decision: does the ESP32 use the phone gateway path, or join LiveKit directly with `client-sdk-esp32` (`livekit-native`)? The same `LKE` tests then cover both paths.
+  - The Raspberry Pi adapter is last. It can also run rover-teleop's own Pi rover for comparison.
 
 ## Board facts the keywords must encode
 These are the lessons from bring-up. Each one becomes a keyword, so no test has to know about it:
@@ -57,14 +96,14 @@ These are the lessons from bring-up. Each one becomes a keyword, so no test has 
   - start and stop `livekit-server` on the LAN with a key generated for each run;
   - start and stop the controller, and collect its counters.
 - **`frame.robot`** plus `lib/control_frame.py`: encode and decode the 6-byte frame, and the shared test vectors.
-- **Runner `run_robot.py`:**
-  - `-i` and `-e` for tag include and exclude, `-V NAME:value` to override variables, `-D` for debug;
-  - `-b <bench.yaml>` picks the bench;
-  - writes `output/<timestamp>/` containing `log.html`, `report.html` and `output.xml`.
+- **Run configurations (`robot/args/`):**
+  - one argument file per run type: `premerge.args` now, then `hil-<device>-<cadence>.args`;
+  - each file sets its bench variable file, include and exclude tag sets, `--metadata` and output directory;
+  - results go to `output/<run>/`, which holds `log.html`, `report.html` and `output.xml`.
 
 ## GitHub Actions
 1. **`premerge.yml`** (GitHub-hosted `ubuntu-latest`, on every push and PR):
-   - installs Robot Framework and runs `robot -i premerge -e needs*`, so sections 10 and 60 on the host;
+   - installs Robot Framework and runs `robot --argumentfile robot/args/premerge.args`, so sections 10 and 60 on the host;
    - uploads `log.html` and `report.html` as artifacts;
    - this job is the first thing to build.
 2. **`hil.yml`** (self-hosted Dell runner, labels `self-hosted, windows, f769-bench`):

@@ -39,7 +39,7 @@ jobs:
         run: pip install -r robot/requirements.txt
 
       - name: Run premerge tests
-        run: python robot/run_robot.py -b robot/benches/hosted.yaml -i premerge -e "needs*" -o robot/output/premerge
+        run: robot --argumentfile robot/args/premerge.args
 
       - name: Upload Robot results
         if: always()

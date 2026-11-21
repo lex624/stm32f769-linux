@@ -1,5 +1,7 @@
 *** Settings ***
-Documentation   General keywords and global constants for the F769 system test
+Documentation   General keywords and global constants for the system test. Imported by
+...             __init__.robot and every suite: variables and keywords defined in an
+...             init file are not visible to child suites, so shared ones live here.
 # ALL LIBRARIES USED BY THE ROBOT TEST CASES
 Library   Process
 Library   OperatingSystem
@@ -10,11 +12,12 @@ Library   Collections
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 *** Variables ***
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-# Supplied by run_robot.py; the defaults let a bare `robot` invocation work too
-${REPO_ROOT}   ${CURDIR}/../..
-${INCLUDE_TAGS}   ${EMPTY}
-${EXCLUDE_TAGS}   ${EMPTY}
+# Override with --variable DEBUG:True
 ${DEBUG}   False
+# The bench variable file (--variablefile robot/benches/<bench>.yaml) overrides these
+${BENCH_NAME}   hosted
+${HAS_HARDWARE}   ${False}
+${REPO_ROOT}   ${{ pathlib.Path(r'${CURDIR}').parents[1].as_posix() }}
 ${GATEWAY_DIR}   ${REPO_ROOT}/gateway
 # Generous: npm ci on a cold cache downloads the whole gateway toolchain
 ${BUILD_STEP_TIMEOUT}   10 minutes
@@ -27,11 +30,14 @@ Initialise System Test
    # Convert the debug True/False passed on the command line to a boolean
    ${DEBUG_ENABLED}=   Convert To Boolean   ${DEBUG}
    Set Global Variable   ${DEBUG_ENABLED}
-   Log   Bench ${BENCH_NAME}: include '${INCLUDE_TAGS}' exclude '${EXCLUDE_TAGS}'   console=True
+   # &{OPTIONS} (RF 5.0+) exposes the command line's include and exclude tag patterns
+   Log   Bench ${BENCH_NAME}: include ${OPTIONS.include} exclude ${OPTIONS.exclude}   console=True
    # A run that selects hardware tests on a bench without hardware would only
    # produce a wall of connection failures, so stop straight away instead.
-   ${wants_hardware}=   Evaluate   'needs' not in '''${EXCLUDE_TAGS}''' and not ${HAS_HARDWARE}
-   Run Keyword If   ${wants_hardware}   Fatal Error   Bench ${BENCH_NAME} has no hardware: exclude the needs* tags (-e "needs*"). Bailing...
+   ${excludes_hardware}=   Evaluate   any(pattern.startswith('needs') for pattern in $OPTIONS.exclude)
+   IF   not ${HAS_HARDWARE} and not ${excludes_hardware}
+      Fatal Error   Bench ${BENCH_NAME} has no hardware: exclude the needs* tags (--exclude needs*). Bailing...
+   END
 
 Tear Down System Test
    Log   System test finished on bench ${BENCH_NAME}   console=True

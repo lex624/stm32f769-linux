@@ -3,7 +3,7 @@
 Documentation   Build and static checks that need no hardware. These run on every
 ...             push and pull request (premerge) on GitHub-hosted runners.
 Resource   ../../resources/common.robot
-Force Tags   critical   premerge   postmerge   nightly   weekend
+Test Tags   critical   premerge   postmerge   nightly   weekend
 Test Timeout   15 minutes
 Suite Setup   Suite Set Up For Build Testing
 
@@ -16,7 +16,9 @@ Suite Set Up For Build Testing
    # once here, not as a failure inside every test.
    Directory Should Exist   ${GATEWAY_DIR}
    ${node}=   Run Process   node --version   shell=True
-   Run Keyword If   ${node.rc} != 0   Fatal Error   Node.js is not installed on this runner. Bailing...
+   IF   ${node.rc} != 0
+      Fatal Error   Node.js is not installed on this runner. Bailing...
+   END
    Log   Node.js ${node.stdout}   console=True
    # Install exactly what package-lock.json pins, as CI and releases would
    Run Build Step   npm ci --no-audit --no-fund   ${GATEWAY_DIR}
