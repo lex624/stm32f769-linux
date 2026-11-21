@@ -17,7 +17,7 @@ BR2_LINUX_KERNEL=y
 BR2_LINUX_KERNEL_CUSTOM_VERSION=y
 BR2_LINUX_KERNEL_CUSTOM_VERSION_VALUE="5.15.211"
 BR2_LINUX_KERNEL_DEFCONFIG="stm32"
-BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(LINUX_DIR)/arch/arm/configs/dram_0xc0000000.config board/stmicroelectronics/stm32f769-disco/linux-sd.fragment $(BR2_EXTERNAL_STM32F769_PATH)/linux-net.fragment $(BR2_EXTERNAL_STM32F769_PATH)/lcd.fragment"
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(LINUX_DIR)/arch/arm/configs/dram_0xc0000000.config board/stmicroelectronics/stm32f769-disco/linux-sd.fragment $(BR2_EXTERNAL_STM32F769_PATH)/linux-net.fragment $(BR2_EXTERNAL_STM32F769_PATH)/lcd.fragment $(BR2_EXTERNAL_STM32F769_PATH)/usb.fragment"
 BR2_LINUX_KERNEL_IMAGE_TARGET_CUSTOM=y
 BR2_LINUX_KERNEL_IMAGE_TARGET_NAME="zImage"
 BR2_LINUX_KERNEL_DTS_SUPPORT=y
@@ -38,9 +38,6 @@ BR2_TARGET_UBOOT_NEEDS_OPENSSL=y
 BR2_PACKAGE_HOST_GENIMAGE=y
 BR2_PACKAGE_HOST_OPENOCD=y
 BR2_PACKAGE_F769_HELLO=y
-# Networking tool is busybox's own nc applet (CONFIG_NC in busybox-min.config),
-# not a standalone package. On noMMU every binary is fully static and each exec()
-# needs one contiguous allocation its full size, so an applet inside the already
-# resident busybox costs nothing while a separate netcat binary costs another
-# allocation. Dropbear was rejected outright for this reason: 419 KB, order-7.
 BR2_PACKAGE_LCD_SHELL=y
+BR2_PACKAGE_HOST_UBOOT_TOOLS=y
+BR2_PACKAGE_F769_BENCH=y

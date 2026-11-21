@@ -1,0 +1,3 @@
+config BR2_PACKAGE_F769_BENCH
+	bool "F769 wired SSH, BLE and control diagnostics"
+	depends on BR2_cortex_m7 && BR2_BINFMT_FLAT

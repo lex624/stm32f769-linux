@@ -1,0 +1,16 @@
+--- a/arch/arm/boot/dts/stm32f769-disco.dts
++++ b/arch/arm/boot/dts/stm32f769-disco.dts
+@@ -144,6 +144,13 @@
+ 
+ &usbotg_hs {
+ 	dr_mode = "otg";
++	/*
++	 * The USB3320 reports VBUS-valid as the overcurrent indicator. A
++	 * device's inrush on CN15 dips VBUS below 4.4 V, the core drops port
++	 * power and the hub retries forever. The board's current-limited
++	 * VBUS switch (fault LED LD4) still protects the port.
++	 */
++	disable-over-current;
+ 	phys = <&usbotg_hs_phy>;
+ 	phy-names = "usb2-phy";
+ 	pinctrl-0 = <&usbotg_hs_pins_a>;

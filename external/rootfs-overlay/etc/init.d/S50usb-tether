@@ -1,0 +1,16 @@
+#!/bin/sh
+# CN15 phone link: usb-tether configures each new usbN that Android USB
+# tethering creates and prints its address; frame-sink receives gateway JPEG
+# frames. Start both at boot while SDRAM is unfragmented: every noMMU exec
+# needs one contiguous block for the whole binary.
+case "$1" in
+    start)
+        start-stop-daemon -S -b -m -p /run/frame-sink.pid -x /usr/bin/frame-sink -- 8090
+        start-stop-daemon -S -b -m -p /run/usb-tether.pid -x /usr/bin/usb-tether -- 8090
+        ;;
+    stop)
+        start-stop-daemon -K -p /run/usb-tether.pid
+        start-stop-daemon -K -p /run/frame-sink.pid
+        ;;
+esac
+exit 0

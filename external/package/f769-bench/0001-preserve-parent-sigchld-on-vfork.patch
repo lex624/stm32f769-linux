@@ -1,0 +1,13 @@
+Preserve the uClibc LinuxThreads signal table shared with a vfork parent.
+Caught signal dispositions reset automatically on successful exec.
+
+--- a/src/dbutil.c
++++ b/src/dbutil.c
+@@ -316 +316 @@
+-		if (signal(SIGCHLD, SIG_DFL) == SIG_ERR) {
++		if (!DROPBEAR_VFORK && signal(SIGCHLD, SIG_DFL) == SIG_ERR) {
+--- a/src/svr-chansession.c
++++ b/src/svr-chansession.c
+@@ -845 +845 @@
+-		if (signal(SIGCHLD, SIG_DFL) == SIG_ERR) {
++		if (!DROPBEAR_VFORK && signal(SIGCHLD, SIG_DFL) == SIG_ERR) {
