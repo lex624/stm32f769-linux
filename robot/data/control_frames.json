@@ -1,0 +1,15 @@
+{
+  "description": "Six-byte control frame vectors shared by every encoder and decoder: version 1, sequence modulo 256, int16 little-endian throttle and steering in thousandths. Axes are the gateway's [-1, 1] gamepad values.",
+  "valid": [
+    {"name": "README example", "sequence": 1, "axes": [-1, 0.5], "throttle": -1000, "steering": 500, "hex": "010118fcf401"},
+    {"name": "smoke test sample", "sequence": 42, "axes": [0.25, -0.5], "throttle": 250, "steering": -500, "hex": "012afa000cfe"},
+    {"name": "neutral", "sequence": 0, "axes": [0, 0], "throttle": 0, "steering": 0, "hex": "010000000000"},
+    {"name": "full scale, sequence wraps", "sequence": 255, "axes": [1, -1], "throttle": 1000, "steering": -1000, "hex": "01ffe80318fc"}
+  ],
+  "invalid": [
+    {"name": "wrong version", "hex": "022afa000cfe"},
+    {"name": "throttle above 1000", "hex": "0107e9030000"},
+    {"name": "steering below -1000", "hex": "0107000017fc"},
+    {"name": "short frame", "hex": "0107fa"}
+  ]
+}

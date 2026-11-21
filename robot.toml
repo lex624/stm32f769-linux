@@ -1,0 +1,16 @@
+# RobotCode (VS Code) configuration. CI uses the argument files in robot/args/;
+# these profiles only let the editor's test explorer run the same suites
+# locally. Pick the profile in VS Code's status bar, or run
+#   robotcode -p dell robot --include needsserial
+paths = ["robot/suites/System_Test_Suite"]
+output-dir = "robot/output/vscode"
+python-path = ["robot/lib"]
+
+[profiles.hosted]
+description = "No hardware: build and host checks"
+variable-files = ["robot/benches/hosted.yaml"]
+exclude = ["needs*"]
+
+[profiles.dell]
+description = "The Dell bench: F769 on COM9 and Ethernet, Wi-Fi, BLE shield, Flip5"
+variable-files = ["robot/benches/dell.yaml"]

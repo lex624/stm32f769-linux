@@ -8,7 +8,9 @@ We build it one section at a time. Each section starts with a single simple test
 
 ## Conventions (same style as our existing system-test suites)
 - **Layout:** `robot/suites/System_Test_Suite/` holds numbered suite files (`10_...`, `20_...`) and an `__init__.robot` with the suite-wide setup and teardown. Shared keywords live in `robot/resources/*.robot`, Python helpers in `robot/lib/*.py`, and run configurations in `robot/args/*.args`.
-- **No wrapper script:** each run configuration is a Robot argument file, run as `robot --argumentfile robot/args/premerge.args`. Add options after it for local runs, for example `--variable DEBUG:True` or `--test "BLD-01*"`. A runner script earns its place only for something argument files cannot do, and a suite setup can usually do that too.
+- **No wrapper script:** each run configuration is a Robot argument file, run as `robot --argumentfile robot/args/premerge.args robot/suites/System_Test_Suite`. Extra options go between the argument file and the suite path, for example `--variable DEBUG:True` or `--test "BLD-01*"`. The suite path is not in the argument file, because Robot reads anything after a data path as another data path.
+- **Missing tools:** a tool that isn't installed (gcc, shellcheck, ruff, gitleaks, node) **skips** its test locally and **fails** it in CI, where `--variable REQUIRE_ALL_TOOLS:True` is set.
+- **VS Code:** `robot.toml` holds RobotCode profiles, `hosted` and `dell`, for the editor's test explorer. CI uses the argument files. A runner script earns its place only for something argument files cannot do, and a suite setup can usually do that too.
 - **Robot 7.x style:**
   - `Test Tags`, not the deprecated `Force Tags`;
   - native `IF`/`END`, not `Run Keyword If`;
@@ -51,7 +53,7 @@ The same section suites run on every device family: STM32F769I-DISCO Linux, ESP3
   - `premerge` and nightly build jobs produce one artifact set per family: F769 `zImage`, DTB and `sdcard.img`; ESP32 `.bin` plus its partition table; Pi image or packages. Each set has a manifest listing versions and checksums.
   - Flashing keywords verify the checksum before and after writing, as the F769 `crc32` check does today.
 - **CI matrix:** the HIL workflow runs one job per device: `matrix: device: [f769, esp32, rpi]` on self-hosted runners labelled `bench-<device>`.
-  - Each job downloads its family's artifacts and runs `robot --argumentfile robot/args/hil-<device>.args`.
+  - Each job downloads its family's artifacts and runs `robot --argumentfile robot/args/hil-<device>.args robot/suites/System_Test_Suite`.
   - Each job reports to its own `output/<device>/` with `--metadata Device:<device>`, and `rebot` merges the results into one report.
 - **Rollout:**
   - The F769 adapter comes first, built in Phases 2–5.
@@ -103,7 +105,7 @@ These are the lessons from bring-up. Each one becomes a keyword, so no test has 
 
 ## GitHub Actions
 1. **`premerge.yml`** (GitHub-hosted `ubuntu-latest`, on every push and PR):
-   - installs Robot Framework and runs `robot --argumentfile robot/args/premerge.args`, so sections 10 and 60 on the host;
+   - installs Robot Framework and runs `robot --argumentfile robot/args/premerge.args --variable REQUIRE_ALL_TOOLS:True robot/suites/System_Test_Suite`, so sections 10 and 60 on the host;
    - uploads `log.html` and `report.html` as artifacts;
    - this job is the first thing to build.
 2. **`hil.yml`** (self-hosted Dell runner, labels `self-hosted, windows, f769-bench`):
